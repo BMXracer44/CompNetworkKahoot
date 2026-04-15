@@ -12,6 +12,12 @@ def receiveMessages(clientSocket):
             msg = clientSocket.recv(1024).decode()
             print(msg)
 
+            # handle timer
+            if msg.startswith("TIMER"):
+                _, t = msg.split()
+                print(f"⏳ Time left: {t}s")
+
+            # handle question
             if msg.startswith("QUESTION"):
                 answer = input("Enter answer (A/B/C/D): ")
                 clientSocket.send(f"ANSWER {answer.upper()}\n".encode())
