@@ -60,23 +60,25 @@ def runGame():
 
         broadcast(msg)
 
-        answers = {}
+       # send countdown + collect answers
+answers = {}
+start = time.time()
 
-        start = time.time()
+for remaining in range(10, 0, -1):
+    broadcast(f"TIMER {remaining}\n")
+    time.sleep(1)
 
-        # collect answers for 10 seconds
-        while time.time() - start < 10:
-            for c in clients:
-                try:
-                    c.settimeout(0.1)
-                    data = c.recv(1024).decode().strip()
+    for c in clients:
+        try:
+            c.settimeout(0.1)
+            data = c.recv(1024).decode().strip()
 
-                    if data.startswith("ANSWER"):
-                        _, choice = data.split()
-                        answers[c] = (choice, time.time() - start)
-
-                except:
-                    pass
+            if data.startswith("ANSWER"):
+                _, choice = data.split()
+                if c not in answers:  # only first answer counts
+                    answers[c] = (choice, time.time() - start)
+        except:
+            pass
 
         # scoring
         for c, (choice, t) in answers.items():
