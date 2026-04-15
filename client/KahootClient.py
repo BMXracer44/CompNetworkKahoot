@@ -4,16 +4,36 @@ Below is the simple client implementation
 """
 
 from socket import *
+from threading import Thread
+
+def receiveMessages(clientSocket):
+    while True:
+        try:
+            msg = clientSocket.recv(1024).decode()
+            print(msg)
+
+            if msg.startswith("QUESTION"):
+                answer = input("Enter answer (A/B/C/D): ")
+                clientSocket.send(f"ANSWER {answer.upper()}\n".encode())
+
+        except:
+            print("Disconnected.")
+            clientSocket.close()
+            break
+
 
 def ClientMain():
-    serverIP = '127.0.0.1' #Will need to change to public IP eventually 
-    serverPort = 12345 
-    while True:
-        clientSocket = socket(AF_INET, SOCK_STREAM)
-        clientSocket.connect((serverIP, serverPort))
+    serverIP = '127.0.0.1'
+    serverPort = 12345
 
-        userName = input("What is your username?")
-        playGameMessage = "PlayGame " + userName + "\n"
-        clientSocket.send(playGameMessage.encode())
+    clientSocket = socket(AF_INET, SOCK_STREAM)
+    clientSocket.connect((serverIP, serverPort))
+
+    userName = input("What is your username? ")
+    playGameMessage = "PlayGame " + userName + "\n"
+    clientSocket.send(playGameMessage.encode())
+
+    Thread(target=receiveMessages, args=(clientSocket,)).start()
+
 
 ClientMain()
