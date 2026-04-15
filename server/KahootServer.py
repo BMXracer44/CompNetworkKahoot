@@ -51,34 +51,39 @@ def broadcast(message):
 
 
 def runGame():
-    time.sleep(5)  # wait for players to join
+    time.sleep(5)  # allow time for players to join
 
     for i, (question, options, correct) in enumerate(questions, start=1):
+
+        # send question
         msg = f"QUESTION {i}\n{question}\n"
         for opt in options:
             msg += opt + "\n"
 
         broadcast(msg)
 
-       # send countdown + collect answers
-answers = {}
-start = time.time()
+        answers = {}
+        start = time.time()
 
-for remaining in range(10, 0, -1):
-    broadcast(f"TIMER {remaining}\n")
-    time.sleep(1)
+        # countdown loop
+        for remaining in range(10, 0, -1):
+            broadcast(f"TIMER {remaining}\n")
+            time.sleep(1)
 
-    for c in clients:
-        try:
-            c.settimeout(0.1)
-            data = c.recv(1024).decode().strip()
+            for c in clients:
+                try:
+                    c.settimeout(0.1)
+                    data = c.recv(1024).decode().strip()
 
-            if data.startswith("ANSWER"):
-                _, choice = data.split()
-                if c not in answers:  # only first answer counts
-                    answers[c] = (choice, time.time() - start)
-        except:
-            pass
+                    if data.startswith("ANSWER"):
+                        _, choice = data.split()
+
+                        # only accept first answer
+                        if c not in answers:
+                            answers[c] = (choice, time.time() - start)
+
+                except:
+                    pass
 
         # scoring
         for c, (choice, t) in answers.items():
