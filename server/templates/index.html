@@ -1,1 +1,256 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Kahoot Clone</title>
 
+    <style>
+        body {
+            font-family: Arial;
+            text-align: center;
+            background: linear-gradient(to right, #46178f, #25076b);
+            color: white;
+            margin: 0;
+        }
+
+        h1 {
+            margin-top: 20px;
+        }
+
+        input {
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 6px;
+            border: none;
+        }
+
+        /* LOGIN BUTTONS */
+        #login button {
+            background: white;
+            color: #46178f;
+            font-weight: bold;
+            border: none;
+            padding: 12px 18px;
+            margin: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        #login button:hover {
+            background: #eaeaea;
+        }
+
+        #game {
+            margin-top: 20px;
+        }
+
+        #question {
+            font-size: 24px;
+            margin: 20px;
+        }
+
+        #timer {
+            font-size: 28px;
+            margin: 10px;
+        }
+
+        /* ANSWERS */
+        #answers {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            width: 60%;
+            margin: auto;
+        }
+
+        .answer {
+            padding: 20px;
+            font-size: 18px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            color: white;
+            transition: 0.2s;
+        }
+
+        .answer:hover {
+            transform: scale(1.03);
+        }
+
+        .A { background: #e21b3c; }
+        .B { background: #1368ce; }
+        .C { background: #d89e00; }
+        .D { background: #26890c; }
+
+        #scores {
+            margin-top: 20px;
+        }
+
+        #lobby {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>🔥 Kahoot Clone 🔥</h1>
+
+<div id="login">
+    <input id="username" placeholder="Enter username">
+    <br>
+    <button onclick="join()">Join Game</button>
+    <button onclick="startGame()">Start Game (Host)</button>
+</div>
+
+<h3>👥 Lobby (Live Players)</h3>
+<div id="lobby">Loading lobby...</div>
+
+<div id="game" style="display:none;">
+    <h2 id="question">Waiting...</h2>
+    <div id="timer"></div>
+    <div id="answers"></div>
+</div>
+
+<div id="scores"></div>
+
+<script>
+
+let username = "";
+let answered = false;
+
+/* START LIVE UPDATES IMMEDIATELY */
+setInterval(updateGame, 1000);
+
+/* JOIN */
+function join() {
+    username = document.getElementById("username").value;
+
+    fetch("/join", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({username})
+    });
+
+    document.getElementById("game").style.display = "block";
+}
+
+/* HOST START */
+function startGame() {
+    fetch("/start", { method: "POST" });
+}
+
+/* SEND ANSWER */
+function sendAnswer(choice) {
+    if (answered) return;
+
+    answered = true;
+
+    fetch("/answer", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({username, choice})
+    });
+
+    // 🔥 HIDE ANSWERS AFTER CLICK
+    document.getElementById("answers").innerHTML =
+        "<h3>✅ Answer locked in!</h3>";
+}
+
+/* MAIN LOOP */
+function updateGame() {
+    fetch("/state")
+    .then(res => res.json())
+    .then(data => {
+
+        /* WAITING */
+        if (data.status === "waiting") {
+            document.getElementById("question").innerText =
+                "Waiting for host to start...";
+
+            updateLobby(data.players);
+            return;
+        }
+
+        /* GAME OVER */
+        if (data.status === "gameover") {
+            document.getElementById("question").innerText = "🏆 Final Results";
+
+            let sorted = Object.entries(data.scores)
+                .sort((a,b) => b[1]-a[1]);
+
+            let medals = ["🥇", "🥈", "🥉"];
+            let html = "<h2>Podium</h2>";
+
+            sorted.forEach((p, i) => {
+                if (i < 3) {
+                    html += medals[i] + " " + p[0] + " - " + p[1] + "<br>";
+                }
+            });
+
+            document.getElementById("scores").innerHTML = html;
+            document.getElementById("answers").innerHTML = "";
+            document.getElementById("timer").innerHTML = "";
+            return;
+        }
+
+        /* RESET LOCK ONLY WHEN NEW QUESTION LOADS */
+        if (data.time_left === 10) {
+            answered = false;
+        }
+
+        /* QUESTION */
+        document.getElementById("question").innerText =
+            "Q" + data.question_number + ": " + data.question;
+
+        document.getElementById("timer").innerText =
+            "⏳ " + data.time_left + "s";
+
+        /* ANSWERS (only show if not answered) */
+        let container = document.getElementById("answers");
+
+        if (!answered) {
+            container.innerHTML = "";
+
+            let letters = ["A","B","C","D"];
+
+            data.choices.forEach((choice, i) => {
+                let btn = document.createElement("button");
+                btn.className = "answer " + letters[i];
+                btn.innerText = letters[i] + ") " + choice;
+                btn.onclick = () => sendAnswer(letters[i]);
+                container.appendChild(btn);
+            });
+        }
+
+        updateLobby(data.players);
+        updateScores(data.scores);
+
+        /* AUTO NEXT QUESTION */
+        if (data.time_left === 0) {
+            fetch("/next", { method: "POST" });
+        }
+    });
+}
+
+/* LOBBY */
+function updateLobby(players) {
+    let html = "";
+    players.forEach(p => {
+        html += "👤 " + p + "<br>";
+    });
+    document.getElementById("lobby").innerHTML = html;
+}
+
+/* SCORES */
+function updateScores(scores) {
+    let html = "<h3>Scoreboard</h3>";
+    for (let u in scores) {
+        html += u + ": " + scores[u] + "<br>";
+    }
+    document.getElementById("scores").innerHTML = html;
+}
+
+</script>
+
+</body>
+</html>

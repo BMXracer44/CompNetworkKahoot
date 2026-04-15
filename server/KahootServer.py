@@ -2,127 +2,120 @@
 This is going to be the Kahoot Server file! 
 Below is the simple server implementation
 """
-
-from socket import *
-from _thread import *
+from flask import Flask, request, jsonify, render_template
 import time
 
-clients = []
-usernames = {}
+app = Flask(__name__)
+
+players = {}
 scores = {}
+answers = {}
+
+game_started = False
+current_question = 0
+question_start_time = 0
 
 questions = [
-    ("What is the capital of France?", ["A) London", "B) Berlin", "C) Paris", "D) Madrid"], "C"),
-    ("What is 2 + 2?", ["A) 3", "B) 4", "C) 5", "D) 6"], "B")
+    {
+        "question": "What is the capital of France?",
+        "choices": ["London", "Berlin", "Paris", "Madrid"],
+        "answer": "C"
+    },
+    {
+        "question": "What is 2 + 2?",
+        "choices": ["3", "4", "5", "6"],
+        "answer": "B"
+    }
 ]
 
-def kahootThread(connectSocket):
-    print('New client connected')
+# ---------------- UI ----------------
+@app.route("/")
+def home():
+    return render_template("index.html")
 
-    try:
-        clientRequest = connectSocket.recv(1024).decode().strip()
-        print(clientRequest)
+# ---------------- JOIN ----------------
+@app.route("/join", methods=["POST"])
+def join():
+    username = request.json["username"]
 
-        parts = clientRequest.split(" ")
-        command = parts[0]
+    if username not in players:
+        players[username] = True
+        scores[username] = 0
 
-        if command == 'PlayGame':
-            userName = parts[1]
+    return jsonify({"status": "joined"})
 
-            clients.append(connectSocket)
-            usernames[connectSocket] = userName
-            scores[userName] = 0
+# ---------------- START GAME (HOST) ----------------
+@app.route("/start", methods=["POST"])
+def start():
+    global game_started, question_start_time, current_question
 
-            welcomeMessage = 'WELCOME ' + userName + '\n'
-            connectSocket.send(welcomeMessage.encode())
+    game_started = True
+    current_question = 0
+    question_start_time = time.time()
 
-            print(userName + " joined the game.")
+    return jsonify({"status": "started"})
 
-    except:
-        connectSocket.close()
+# ---------------- GAME STATE (SYNC FOR ALL PLAYERS) ----------------
+@app.route("/state")
+def state():
+    global current_question, question_start_time
 
+    if not game_started:
+        return jsonify({
+            "status": "waiting",
+            "players": list(players.keys())
+        })
 
-def broadcast(message):
-    for c in clients:
-        try:
-            c.send(message.encode())
-        except:
-            c.close()
+    if current_question >= len(questions):
+        return jsonify({
+            "status": "gameover",
+            "scores": scores
+        })
 
+    q = questions[current_question]
 
-def runGame():
-    time.sleep(5)  # allow time for players to join
+    time_left = max(0, 10 - int(time.time() - question_start_time))
 
-    for i, (question, options, correct) in enumerate(questions, start=1):
+    return jsonify({
+        "status": "playing",
+        "question_number": current_question + 1,
+        "question": q["question"],
+        "choices": q["choices"],
+        "time_left": time_left,
+        "scores": scores,
+        "players": list(players.keys())
+    })
 
-        # send question
-        msg = f"QUESTION {i}\n{question}\n"
-        for opt in options:
-            msg += opt + "\n"
+# ---------------- ANSWER ----------------
+@app.route("/answer", methods=["POST"])
+def answer():
+    username = request.json["username"]
+    choice = request.json["choice"]
 
-        broadcast(msg)
+    # only first answer counts
+    if username not in answers:
+        elapsed = time.time() - question_start_time
+        answers[username] = (choice, elapsed)
 
-        answers = {}
-        start = time.time()
+    return jsonify({"status": "received"})
 
-        # countdown loop
-        for remaining in range(10, 0, -1):
-            broadcast(f"TIMER {remaining}\n")
-            time.sleep(1)
+# ---------------- NEXT QUESTION ----------------
+@app.route("/next", methods=["POST"])
+def next_question():
+    global current_question, answers, question_start_time
 
-            for c in clients:
-                try:
-                    c.settimeout(0.1)
-                    data = c.recv(1024).decode().strip()
+    correct = questions[current_question]["answer"]
 
-                    if data.startswith("ANSWER"):
-                        _, choice = data.split()
+    for user, (choice, t) in answers.items():
+        if choice == correct:
+            scores[user] += max(0, int(10 - t))
 
-                        # only accept first answer
-                        if c not in answers:
-                            answers[c] = (choice, time.time() - start)
+    answers = {}
+    current_question += 1
+    question_start_time = time.time()
 
-                except:
-                    pass
+    return jsonify({"status": "next"})
 
-        # scoring
-        for c, (choice, t) in answers.items():
-            if choice == correct:
-                username = usernames[c]
-                points = max(0, int(10 - t))
-                scores[username] += points
-
-        # send scores
-        scoreMsg = "SCORES\n"
-        for u, s in scores.items():
-            scoreMsg += f"{u} {s}\n"
-        scoreMsg += "END\n"
-
-        broadcast(scoreMsg)
-
-    # game over
-    final = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-
-    msg = "GAME_OVER\n"
-    for i, (u, s) in enumerate(final, start=1):
-        msg += f"{i} {u} {s}\n"
-
-    broadcast(msg)
-
-
-def serverMain():
-    serverPort = 12345
-    serverSocket = socket(AF_INET, SOCK_STREAM)
-    serverSocket.bind(("", serverPort))
-    serverSocket.listen(5)
-
-    print("Kahoot game is ready!")
-
-    start_new_thread(runGame, ())
-
-    while True:
-        connectSocket, addr = serverSocket.accept()
-        start_new_thread(kahootThread, (connectSocket,))
-
-
-serverMain()
+# ---------------- RUN ----------------
+if __name__ == "__main__":
+    app.run(debug=True)
