@@ -1,0 +1,169 @@
+/* =============================================
+   PYHOOT — host.css
+   Aesthetic: Command-center / game-show stage
+   ============================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&family=Boogaloo&display=swap');
+
+/* --- Root Variables --- */
+:root {
+  --bg-dark:       #0d0d1a;
+  --bg-mid:        #13132b;
+  --card-bg:       #1b1b3a;
+  --border-subtle: rgba(255,255,255,0.08);
+  --accent-purple: #7c5cbf;
+  --accent-teal:   #00c9a7;
+  --accent-yellow: #f5a623;
+  --accent-red:    #e94560;
+  --text-light:    #eaeaea;
+  --text-muted:    #8892b0;
+
+  --radius-card:   20px;
+  --radius-btn:    12px;
+  --shadow-card:   0 12px 40px rgba(0,0,0,0.55);
+}
+
+/* --- Reset & Base --- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Nunito', sans-serif;
+  background-color: var(--bg-dark);
+  background-image:
+    radial-gradient(ellipse at 15% 15%, rgba(124,92,191,0.15) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 85%, rgba(0,201,167,0.10) 0%, transparent 55%);
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 20px;
+  color: var(--text-light);
+}
+
+/* --- Card --- */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  padding: 44px 40px;
+  max-width: 640px;
+  width: 100%;
+  box-shadow: var(--shadow-card);
+  animation: dropIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes dropIn {
+  from { opacity: 0; transform: translateY(-24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Heading --- */
+.card h1 {
+  font-family: 'Boogaloo', cursive;
+  font-size: 3rem;
+  letter-spacing: 1px;
+  background: linear-gradient(135deg, var(--accent-yellow), var(--accent-teal));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 20px;
+}
+
+/* --- Status Panel --- */
+#status {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-btn);
+  padding: 16px 20px;
+  font-size: 1rem;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+  min-height: 52px;
+  line-height: 1.5;
+  transition: background 0.3s;
+}
+
+#status h2 {
+  font-family: 'Boogaloo', cursive;
+  font-size: 1.6rem;
+  color: var(--accent-red);
+  margin-bottom: 6px;
+}
+
+#status p {
+  font-size: 1.1rem;
+  color: var(--text-light);
+  margin: 4px 0;
+}
+
+/* --- Buttons --- */
+button {
+  padding: 14px 32px;
+  font-size: 1.05rem;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 900;
+  letter-spacing: 0.4px;
+  border: none;
+  border-radius: var(--radius-btn);
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s, filter 0.15s;
+  margin: 5px 6px;
+}
+
+button:hover  { transform: translateY(-2px); filter: brightness(1.1); }
+button:active { transform: translateY(0); }
+
+#startBtn {
+  background: linear-gradient(135deg, var(--accent-teal), #009e82);
+  color: #0d0d1a;
+  box-shadow: 0 4px 18px rgba(0,201,167,0.35);
+}
+
+#nextBtn {
+  background: linear-gradient(135deg, var(--accent-purple), #5a3ea0);
+  color: #fff;
+  box-shadow: 0 4px 18px rgba(124,92,191,0.35);
+}
+
+/* --- Leaderboard Title --- */
+#leaderboardTitle {
+  font-family: 'Boogaloo', cursive;
+  font-size: 1.5rem;
+  color: var(--accent-yellow);
+  margin-top: 28px;
+  margin-bottom: 12px;
+  letter-spacing: 0.5px;
+}
+
+/* --- Player List --- */
+#playerList {
+  list-style: none;
+  padding: 0;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+#playerList li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border-subtle);
+  transition: background 0.2s;
+  animation: rowIn 0.3s ease both;
+}
+
+#playerList li:hover { background: rgba(255,255,255,0.07); }
+
+@keyframes rowIn {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+#playerList li b {
+  color: var(--accent-teal);
+  font-weight: 900;
+}

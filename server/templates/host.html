@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Kahoot Host</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='host.css') }}">
+</head>
+<body>
+    <div class="card">
+        <h1>Host Dashboard</h1>
+        <div id="status">Waiting for players to join...</div>
+        <br>
+        <button id="startBtn" onclick="startGame()">Start Game</button>
+        <button id="nextBtn" onclick="nextQuestion()" style="display:none;">Next Question</button>
+        
+        <h2 id="leaderboardTitle" style="display:none;">Standings:</h2>
+        <ul id="playerList"></ul>
+    </div>
+
+    <script>
+        function startGame() {
+            fetch('/start', {method: 'POST'});
+            document.getElementById("startBtn").style.display = "none";
+        }
+
+        function nextQuestion() {
+            fetch('/next', {method: 'POST'});
+        }
+
+        setInterval(async () => {
+            let res = await fetch('/state');
+            let data = await res.json();
+            
+            let list = document.getElementById("playerList");
+            // 1. Create a temporary string to hold our new HTML
+            let newHTML = ""; 
+
+            if (data.status === "waiting") {
+                data.players.forEach(p => newHTML += `<li>${p} joined!</li>`);
+            
+            } else if (data.status === "playing") {
+                document.getElementById("status").innerHTML = `<h2>Question ${data.question_number}</h2><p style="font-size:30px">⏳ ${data.time_left}s</p><p>📩 Answers in: ${data.answers_count}</p>`;
+                document.getElementById("nextBtn").style.display = "none";
+                document.getElementById("leaderboardTitle").style.display = "none";
+            
+            } else if (data.status === "revealed") {
+                document.getElementById("status").innerHTML = `<h2 style="color:red">Time's Up!</h2><p>The correct answer was: <b>${data.correct_answer}</b></p>`;
+                
+                let nextBtn = document.getElementById("nextBtn");
+                nextBtn.style.display = "inline-block";
+                nextBtn.innerText = data.is_last_question ? "End Game" : "Next Question";
+                
+                document.getElementById("leaderboardTitle").style.display = "block";
+                
+                let sortedScores = Object.entries(data.scores).sort((a, b) => b[1] - a[1]);
+                sortedScores.forEach(([user, score]) => {
+                    newHTML += `<li><b>${user}</b>: ${score} pts</li>`;
+                });
+
+            } else if (data.status === "gameover") {
+                document.getElementById("status").innerHTML = "<h2>Game Over! Final Podium:</h2>";
+                document.getElementById("nextBtn").style.display = "none";
+                document.getElementById("leaderboardTitle").style.display = "none";
+                
+                let sortedScores = Object.entries(data.scores).sort((a, b) => b[1] - a[1]);
+                sortedScores.forEach(([user, score], index) => {
+                    let medal = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "🏅";
+                    newHTML += `<li>${medal} <b>${user}</b>: ${score} pts</li>`;
+                });
+            }
+
+            // 2. ONLY update the live screen if the new HTML is different from the old HTML.
+            // This completely eliminates all flickering!
+            if (list.innerHTML !== newHTML) {
+                list.innerHTML = newHTML;
+            }
+            
+        }, 1000);
+    </script>
+</body>
+</html>

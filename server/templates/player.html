@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Play Kahoot</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='player.css') }}">
+</head>
+<body>
+    <div class="card" id="gameArea">
+        <div id="joinScreen">
+            <h1>Join Game</h1>
+            <input type="text" id="username" placeholder="Enter Nickname">
+            <button onclick="joinGame()">Enter</button>
+        </div>
+
+        <div id="playScreen" style="display:none;">
+            <h2 id="qText">Waiting for Host...</h2>
+            <h1 id="timer"></h1>
+            
+            <div id="choicesArea" style="display:none;">
+                <button class="choice-btn" id="btn-A" onclick="sendAnswer('A')">A</button>
+                <button class="choice-btn" id="btn-B" onclick="sendAnswer('B')">B</button>
+                <button class="choice-btn" id="btn-C" onclick="sendAnswer('C')">C</button>
+                <button class="choice-btn" id="btn-D" onclick="sendAnswer('D')">D</button>
+            </div>
+
+            <div id="playerLeaderboard" class="leaderboard-box" style="display:none;">
+                <h3>Current Standings</h3>
+                <ul id="clientRankings"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let myUsername = "";
+        let currentQ = 0;
+        let answered = false;
+
+        async function joinGame() {
+            myUsername = document.getElementById("username").value;
+            if (!myUsername) return;
+            
+            await fetch('/join', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username: myUsername})
+            });
+            
+            document.getElementById("joinScreen").style.display = "none";
+            document.getElementById("playScreen").style.display = "block";
+        }
+
+        async function sendAnswer(choice) {
+            if (answered) return;
+            answered = true;
+            
+            await fetch('/answer', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username: myUsername, choice: choice})
+            });
+            
+            document.getElementById("choicesArea").style.display = "none";
+            document.getElementById("qText").innerText = "Answer submitted! Waiting for timer...";
+            document.getElementById("qText").style.color = "black";
+        }
+
+        setInterval(async () => {
+            if (!myUsername) return; 
+
+            let res = await fetch('/state');
+            let data = await res.json();
+
+            if (data.status === "playing") {
+                // Hide leaderboard when a new question starts
+                document.getElementById("playerLeaderboard").style.display = "none";
+
+                if (data.question_number !== currentQ) {
+                    currentQ = data.question_number;
+                    answered = false;
+                    
+                    document.getElementById("qText").style.color = "black";
+                    document.getElementById("qText").innerText = data.question;
+                    document.getElementById("choicesArea").style.display = "block";
+                    
+                    let letters = ['A', 'B', 'C', 'D'];
+                    data.choices.forEach((choice, index) => {
+                        document.getElementById(`btn-${letters[index]}`).innerText = choice;
+                    });
+                }
+                document.getElementById("timer").innerText = data.time_left > 0 ? data.time_left : "";
+
+            } else if (data.status === "revealed") {
+                document.getElementById("timer").innerText = "";
+                document.getElementById("choicesArea").style.display = "none";
+                
+                // 1. Give the player their personal feedback
+                let myAnswerData = data.answers[myUsername];
+                if (myAnswerData) {
+                    if (myAnswerData.choice === data.correct_answer) {
+                        let pts = Math.max(0, Math.floor(10 - myAnswerData.time));
+                        document.getElementById("qText").innerText = `✅ Correct! (+${pts} pts)`;
+                        document.getElementById("qText").style.color = "green";
+                    } else {
+                        document.getElementById("qText").innerText = `❌ Incorrect. The answer was ${data.correct_answer}.`;
+                        document.getElementById("qText").style.color = "red";
+                    }
+                } else {
+                    document.getElementById("qText").innerText = `⏰ Time's up! The answer was ${data.correct_answer}.`;
+                    document.getElementById("qText").style.color = "orange";
+                }
+
+                // 2. Show the Leaderboard
+                document.getElementById("playerLeaderboard").style.display = "block";
+                let list = document.getElementById("clientRankings");
+                list.innerHTML = ""; // Clear old data
+                
+                // Sort scores highest to lowest
+                let sortedScores = Object.entries(data.scores).sort((a, b) => b[1] - a[1]);
+                
+                sortedScores.forEach(([user, score], index) => {
+                    let rank = index + 1;
+                    // If it's the current player, highlight their row
+                    if (user === myUsername) {
+                        list.innerHTML += `<li class="highlight-me">${rank}. ${user} (You) - ${score} pts</li>`;
+                    } else {
+                        list.innerHTML += `<li>${rank}. ${user} - ${score} pts</li>`;
+                    }
+                });
+
+            } else if (data.status === "gameover") {
+                document.getElementById("qText").style.color = "black";
+                let myScore = data.scores[myUsername] || 0;
+                document.getElementById("qText").innerHTML = `<h2>🏁 Game Over!</h2>You scored: ${myScore} pts`;
+                document.getElementById("timer").innerText = "";
+                document.getElementById("choicesArea").style.display = "none";
+
+                // Show final podium on client screen
+                document.getElementById("playerLeaderboard").style.display = "block";
+                document.querySelector("#playerLeaderboard h3").innerText = "Final Podium";
+                
+                let list = document.getElementById("clientRankings");
+                list.innerHTML = "";
+                
+                let sortedScores = Object.entries(data.scores).sort((a, b) => b[1] - a[1]);
+                sortedScores.forEach(([user, score], index) => {
+                    let medal = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "🏅";
+                    if (user === myUsername) {
+                        list.innerHTML += `<li class="highlight-me">${medal} ${user} (You) - ${score} pts</li>`;
+                    } else {
+                        list.innerHTML += `<li>${medal} ${user} - ${score} pts</li>`;
+                    }
+                });
+            }
+        }, 1000);
+    </script>
+</body>
+</html>
