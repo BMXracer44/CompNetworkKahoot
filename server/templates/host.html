@@ -17,6 +17,10 @@
     </div>
 
     <script>
+        // Track the exact strings internally so we don't rely on the browser's HTML parser
+        let lastPlayerHTML = "";
+        let lastStatusHTML = "";
+
         function startGame() {
             fetch('/start', {method: 'POST'});
             document.getElementById("startBtn").style.display = "none";
@@ -27,23 +31,26 @@
         }
 
         setInterval(async () => {
-            let res = await fetch('/state');
+            // cache: "no-store" forces the browser to pull live data every single time
+            let res = await fetch('/state', { cache: 'no-store' });
             let data = await res.json();
             
             let list = document.getElementById("playerList");
-            // 1. Create a temporary string to hold our new HTML
-            let newHTML = ""; 
+            let statusDiv = document.getElementById("status");
+            
+            let newPlayerHTML = ""; 
+            let newStatusHTML = statusDiv.innerHTML;
 
             if (data.status === "waiting") {
-                data.players.forEach(p => newHTML += `<li>${p} joined!</li>`);
+                data.players.forEach(p => newPlayerHTML += `<li>${p} joined!</li>`);
             
             } else if (data.status === "playing") {
-                document.getElementById("status").innerHTML = `<h2>Question ${data.question_number}</h2><p style="font-size:30px">⏳ ${data.time_left}s</p><p>📩 Answers in: ${data.answers_count}</p>`;
+                newStatusHTML = `<h2>Question ${data.question_number}</h2><p style="font-size:30px">⏳ ${data.time_left}s</p><p>📩 Answers in: ${data.answers_count}</p>`;
                 document.getElementById("nextBtn").style.display = "none";
                 document.getElementById("leaderboardTitle").style.display = "none";
             
             } else if (data.status === "revealed") {
-                document.getElementById("status").innerHTML = `<h2 style="color:red">Time's Up!</h2><p>The correct answer was: <b>${data.correct_answer}</b></p>`;
+                newStatusHTML = `<h2 style="color:red">Time's Up!</h2><p>The correct answer was: <b>${data.correct_answer}</b></p>`;
                 
                 let nextBtn = document.getElementById("nextBtn");
                 nextBtn.style.display = "inline-block";
@@ -53,25 +60,30 @@
                 
                 let sortedScores = Object.entries(data.scores).sort((a, b) => b[1] - a[1]);
                 sortedScores.forEach(([user, score]) => {
-                    newHTML += `<li><b>${user}</b>: ${score} pts</li>`;
+                    newPlayerHTML += `<li><b>${user}</b>: ${score} pts</li>`;
                 });
 
             } else if (data.status === "gameover") {
-                document.getElementById("status").innerHTML = "<h2>Game Over! Final Podium:</h2>";
+                newStatusHTML = "<h2>Game Over! Final Podium:</h2>";
                 document.getElementById("nextBtn").style.display = "none";
                 document.getElementById("leaderboardTitle").style.display = "none";
                 
                 let sortedScores = Object.entries(data.scores).sort((a, b) => b[1] - a[1]);
                 sortedScores.forEach(([user, score], index) => {
                     let medal = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "🏅";
-                    newHTML += `<li>${medal} <b>${user}</b>: ${score} pts</li>`;
+                    newPlayerHTML += `<li>${medal} <b>${user}</b>: ${score} pts</li>`;
                 });
             }
 
-            // 2. ONLY update the live screen if the new HTML is different from the old HTML.
-            // This completely eliminates all flickering!
-            if (list.innerHTML !== newHTML) {
-                list.innerHTML = newHTML;
+            // ONLY update the live screen if our internal tracker sees a difference
+            if (lastPlayerHTML !== newPlayerHTML) {
+                list.innerHTML = newPlayerHTML;
+                lastPlayerHTML = newPlayerHTML; // Update our tracker
+            }
+
+            if (lastStatusHTML !== newStatusHTML) {
+                statusDiv.innerHTML = newStatusHTML;
+                lastStatusHTML = newStatusHTML; // Update our tracker
             }
             
         }, 1000);
