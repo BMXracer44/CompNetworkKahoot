@@ -40,8 +40,8 @@ def start():
     global game_started, question_start_time, current_question, answers, question_state, questions
     
     # Load questions dynamically every time a new game starts
-    if os.path.exists("questions.json"):
-        with open("questions.json", "r") as f:
+    if os.path.exists("server/questions.json"):
+        with open("server/questions.json", "r") as f:
             questions = json.load(f)
     else:
         questions = [{"question": "No questions.json found!", "choices": ["A", "B", "C", "D"], "answer": "A"}]
