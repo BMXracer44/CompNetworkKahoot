@@ -9,55 +9,86 @@
         <h1>Host Dashboard</h1>
         <div id="status">Waiting for players to join...</div>
         <br>
+        <input type="number" id="numQuestions" min="1" placeholder="# of questions (default: all)" style="margin-bottom:10px;">
+        <br>
         <button id="startBtn" onclick="startGame()">Start Game</button>
         <button id="nextBtn" onclick="nextQuestion()" style="display:none;">Next Question</button>
-        
+        <button id="endBtn" onclick="endGame()" style="display:none;">End Game</button>
         <h2 id="leaderboardTitle" style="display:none;">Standings:</h2>
         <ul id="playerList"></ul>
     </div>
 
     <script>
-        // Track the exact strings internally so we don't rely on the browser's HTML parser
         let lastPlayerHTML = "";
         let lastStatusHTML = "";
 
+        // Runs once on page load to set the max
+        window.addEventListener("load", async () => {
+            let res = await fetch('/question_count');
+            let data = await res.json();
+            let input = document.getElementById("numQuestions");
+            input.max = data.count;
+            input.placeholder = `# of questions (max: ${data.count})`;
+
+            input.addEventListener("input", () => {
+                const max = parseInt(input.max);
+                if (parseInt(input.value) > max) input.value = max;
+                if (parseInt(input.value) < 1) input.value = 1;
+            });
+        });
+
         function startGame() {
-            fetch('/start', {method: 'POST'});
+            const input = document.getElementById("numQuestions");
+            const max = parseInt(input.max);
+            let numQ = parseInt(input.value);
+
+            if (!numQ || numQ < 1) numQ = max;
+            if (numQ > max) numQ = max;
+            input.value = numQ;
+
+            fetch('/start', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ num_questions: numQ })
+            });
             document.getElementById("startBtn").style.display = "none";
+            document.getElementById("numQuestions").style.display = "none";
+        }
+
+        function endGame() {
+            fetch('/end', { method: 'POST' });
         }
 
         function nextQuestion() {
-            fetch('/next', {method: 'POST'});
+            fetch('/next', { method: 'POST' });
         }
 
         setInterval(async () => {
-            // cache: "no-store" forces the browser to pull live data every single time
             let res = await fetch('/state', { cache: 'no-store' });
             let data = await res.json();
             
             let list = document.getElementById("playerList");
             let statusDiv = document.getElementById("status");
             
-            let newPlayerHTML = ""; 
+            let newPlayerHTML = "";
             let newStatusHTML = statusDiv.innerHTML;
 
             if (data.status === "waiting") {
                 data.players.forEach(p => newPlayerHTML += `<li>${p} joined!</li>`);
             
             } else if (data.status === "playing") {
-                newStatusHTML = `<h2>Question ${data.question_number}</h2><p style="font-size:30px">⏳ ${data.time_left}s</p><p>📩 Answers in: ${data.answers_count}</p>`;
+                let lastWarning = data.is_last_question ? `<p style="color:var(--accent-yellow);font-weight:900;">⚠️ Last Question!</p>` : "";
+                newStatusHTML = `<h2>Question ${data.question_number} of ${data.total_questions}</h2>${lastWarning}<p style="font-size:30px">⏳ ${data.time_left}s</p><p>📩 Answers in: ${data.answers_count}</p>`;
                 document.getElementById("nextBtn").style.display = "none";
+                document.getElementById("endBtn").style.display = "none";
                 document.getElementById("leaderboardTitle").style.display = "none";
-            
+
             } else if (data.status === "revealed") {
                 newStatusHTML = `<h2 style="color:red">Time's Up!</h2><p>The correct answer was: <b>${data.correct_answer}</b></p>`;
-                
-                let nextBtn = document.getElementById("nextBtn");
-                nextBtn.style.display = "inline-block";
-                nextBtn.innerText = data.is_last_question ? "End Game" : "Next Question";
-                
+                document.getElementById("nextBtn").style.display = data.is_last_question ? "none" : "inline-block";
+                document.getElementById("endBtn").style.display = "inline-block";
                 document.getElementById("leaderboardTitle").style.display = "block";
-                
+
                 let sortedScores = Object.entries(data.scores).sort((a, b) => b[1] - a[1]);
                 sortedScores.forEach(([user, score]) => {
                     newPlayerHTML += `<li><b>${user}</b>: ${score} pts</li>`;
@@ -67,6 +98,7 @@
                 newStatusHTML = "<h2>Game Over! Final Podium:</h2>";
                 document.getElementById("nextBtn").style.display = "none";
                 document.getElementById("leaderboardTitle").style.display = "none";
+                document.getElementById("endBtn").style.display = "none";
                 
                 let sortedScores = Object.entries(data.scores).sort((a, b) => b[1] - a[1]);
                 sortedScores.forEach(([user, score], index) => {
@@ -75,15 +107,14 @@
                 });
             }
 
-            // ONLY update the live screen if our internal tracker sees a difference
             if (lastPlayerHTML !== newPlayerHTML) {
                 list.innerHTML = newPlayerHTML;
-                lastPlayerHTML = newPlayerHTML; // Update our tracker
+                lastPlayerHTML = newPlayerHTML;
             }
 
             if (lastStatusHTML !== newStatusHTML) {
                 statusDiv.innerHTML = newStatusHTML;
-                lastStatusHTML = newStatusHTML; // Update our tracker
+                lastStatusHTML = newStatusHTML;
             }
             
         }, 1000);

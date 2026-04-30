@@ -41,6 +41,9 @@ def ClientMain():
                 
                 # If the server has moved to a new question, display it
                 if current_q != last_question:
+                    if state_resp.get("is_last_question"):
+                        print("\n⚠️  LAST QUESTION! Make it count!")
+                    
                     print(f"\n--- Question {current_q} ---")
                     print(state_resp['question'])
                     

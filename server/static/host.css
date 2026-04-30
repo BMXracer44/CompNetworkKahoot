@@ -167,3 +167,37 @@ button:active { transform: translateY(0); }
   color: var(--accent-teal);
   font-weight: 900;
 }
+
+/* --- Question Count Input --- */
+#numQuestions {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-btn);
+  color: var(--text-light);
+  font-family: 'Nunito', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 12px 18px;
+  width: 100%;
+  margin-bottom: 16px;
+  outline: none;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+#numQuestions::placeholder { color: var(--text-muted); }
+#numQuestions:focus {
+  border-color: var(--accent-teal);
+  background: rgba(0,201,167,0.07);
+}
+
+/* --- End Game Button --- */
+#endBtn {
+  background: linear-gradient(135deg, var(--accent-red), #b5283f);
+  color: #fff;
+  box-shadow: 0 4px 18px rgba(233,69,96,0.35);
+}
+
+#numQuestions::-webkit-inner-spin-button,
+#numQuestions::-webkit-outer-spin-button {
+  opacity: 1; /* Keep spinner visible so user sees the max */
+}

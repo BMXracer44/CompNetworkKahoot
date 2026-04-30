@@ -77,6 +77,15 @@
                 if (data.question_number !== currentQ) {
                     currentQ = data.question_number;
                     answered = false;
+
+                    if (data.is_last_question) {
+                        document.getElementById("qText").innerText = "⚠️ Last Question!";
+                        document.getElementById("qText").style.color = "var(--accent-yellow)";
+                        await new Promise(r => setTimeout(r, 1500)); // Show it for 1.5s
+                    }
+
+                    document.getElementById("qText").style.color = "";
+                    document.getElementById("qText").innerText = data.question;
                     
                     document.getElementById("qText").style.color = "black";
                     document.getElementById("qText").innerText = data.question;

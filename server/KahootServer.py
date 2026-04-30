@@ -3,7 +3,8 @@ import time
 import webbrowser
 import threading
 import json 
-import os 
+import os
+import random
 
 app = Flask(__name__)
 
@@ -38,13 +39,21 @@ def join():
 @app.route("/start", methods=["POST"])
 def start():
     global game_started, question_start_time, current_question, answers, question_state, questions
-    
-    # Load questions dynamically every time a new game starts
+
     if os.path.exists("server/questions.json"):
         with open("server/questions.json", "r") as f:
-            questions = json.load(f)
+            all_questions = json.load(f)
     else:
-        questions = [{"question": "No questions.json found!", "choices": ["A", "B", "C", "D"], "answer": "A"}]
+        all_questions = [{"question": "No questions.json found!", "choices": ["A","B","C","D"], "answer": "A"}]
+
+    random.shuffle(all_questions)  # Randomize order
+
+    data = request.get_json(silent=True) or {}
+    requested = data.get("num_questions")
+    if requested and 1 <= int(requested) <= len(all_questions):
+        questions = all_questions[:int(requested)]
+    else:
+        questions = all_questions
 
     game_started = True
     current_question = 0
@@ -52,6 +61,21 @@ def start():
     question_state = "playing"
     question_start_time = time.time()
     return jsonify({"status": "started"})
+
+@app.route("/end", methods=["POST"])
+def end_game():
+    global current_question, questions
+    # Jump past the last question to trigger gameover state
+    current_question = len(questions)
+    return jsonify({"status": "ended"})
+
+@app.route("/question_count")
+def question_count():
+    if os.path.exists("server/questions.json"):
+        with open("server/questions.json", "r") as f:
+            all_questions = json.load(f)
+        return jsonify({"count": len(all_questions)})
+    return jsonify({"count": 1})
 
 @app.route("/state")
 def state():
@@ -91,7 +115,8 @@ def state():
         "answers": client_answers,
         "answers_count": len(answers),
         # NEW: Tell the client if this is the final question
-        "is_last_question": current_question == len(questions) - 1 
+        "is_last_question": current_question == len(questions) - 1, 
+        "total_questions": len(questions)
     })
 
 @app.route("/answer", methods=["POST"])
