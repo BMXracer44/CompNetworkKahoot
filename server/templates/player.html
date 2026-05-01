@@ -13,7 +13,7 @@
         </div>
 
         <div id="playScreen" style="display:none;">
-            <h2 id="qText">Waiting for Host...</h2>
+            <h2 id="qText">Welcome! Waiting for Host...</h2>
             <h1 id="timer"></h1>
             
             <div id="choicesArea" style="display:none;">
@@ -106,7 +106,7 @@
                 let myAnswerData = data.answers[myUsername];
                 if (myAnswerData) {
                     if (myAnswerData.choice === data.correct_answer) {
-                        let pts = Math.max(0, Math.floor(10 - myAnswerData.time));
+                        let pts = Math.max(1, Math.floor(11 - myAnswerData.time));
                         document.getElementById("qText").innerText = `✅ Correct! (+${pts} pts)`;
                         document.getElementById("qText").style.color = "green";
                     } else {

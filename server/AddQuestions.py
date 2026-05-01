@@ -1,7 +1,7 @@
 import json
 import os
 
-FILE_NAME = "questions.json"
+FILE_NAME = "server/questions.json"
 
 def main():
     print("📝 Kahoot Question Adder 📝")
@@ -23,15 +23,17 @@ def main():
         "answer": correct_answer
     }
     
-    # Load existing questions if the file exists
-    if os.path.exists(FILE_NAME):
-        with open(FILE_NAME, "r") as f:
-            try:
-                questions = json.load(f)
-            except json.JSONDecodeError:
-                questions = [] # If file is empty or corrupted
-    else:
-        questions = []
+    # Load existing questions from file (file must already exist)
+    if not os.path.exists(FILE_NAME):
+        print(f"❌ Error: '{FILE_NAME}' not found. Please make sure the file exists.")
+        return
+
+    with open(FILE_NAME, "r") as f:
+        try:
+            questions = json.load(f)
+        except json.JSONDecodeError:
+            print(f"❌ Error: '{FILE_NAME}' is empty or corrupted.")
+            return
         
     # Add the new question and save it
     questions.append(new_question)

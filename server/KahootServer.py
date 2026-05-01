@@ -96,7 +96,7 @@ def state():
         correct = q["answer"]
         for user, (choice, t) in answers.items():
             if choice == correct:
-                scores[user] += max(0, int(10 - t))
+                scores[user] += max(1, int(11 - t))
         question_state = "revealed"
 
     client_answers = {}
